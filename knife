@@ -1,0 +1,185 @@
+_knife()
+{
+    local cur prev completions
+
+    COMPREPLY=()
+    cur=${COMP_WORDS[COMP_CWORD]}
+    prev=${COMP_WORDS[COMP_CWORD-1]}
+    prev2=${COMP_WORDS[1]}
+    prev3=${COMP_WORDS[2]}
+
+    COMMANDS='bootstrap client configure converge cookbook data delete\
+              deps diff download edit environment exec help index\ 
+              list node raw recipe role search show ssh ssl status tag\
+              upload user xargs'
+
+    HELP_TOPICS='bootstrap chef-shell client configure cookbook cookbook-site\
+                 data-bag delete deps diff download edit environment exec\
+                 index-rebuild knife node raw recipe-list role search\
+                 show ssh status tag upload user xargs'
+
+    BOOTSTRAP_OPT='\
+      -i --identity-file\
+      -N --node-name\
+      -x --ssh-user\
+      -P --ssh-password\
+      -p --ssh-port\
+      --bootstrap-version\
+      --bootstrap-proxy\
+      --prerelease\
+      -r --run-list\
+      --template-file\
+      --sudo\
+      -d --distro\
+      --no-host-key-verify\
+      --host-key-verify\
+      --hint'
+
+    CLIENT_OPT='\
+      show\
+      create\
+      delete\
+      edit\
+      list\
+      reregister\
+      bulk'
+
+    CONFIGURE_OPT='\
+      -i --initial\
+      -r --repository\'
+
+    COOKBOOK_OPT='\
+      bulk\
+      create\
+      delete\
+      download\
+      list\
+      metadata\
+      show\
+      test\
+      upload\'    
+
+    DATA_OPT='bag'
+
+    DATABAG_OPT='\
+      create\
+      delete\
+      edit\
+      from\
+      list\
+      show\'
+
+    ENVIRONMENT_OPT='\
+      compare\
+      create\
+      delete\
+      edit\
+      from\
+      list\
+      show\'
+
+    NODE_OPT='\
+       bulk\
+       create\
+       delete\
+       edit\
+       from\
+       list\
+       run_list\
+       show\'
+
+    RUNLIST_OPT='\
+       add\
+       remove\
+       set\' 
+
+    ROLE_OPT='\
+       bulk\
+       create\
+       delete\
+       edit\
+       from\
+       list\
+       show\'
+
+    SSL_OPT='\
+       check\
+       fetch\'
+    
+    TAG_OPT='\
+       create\
+       delete\
+       list\'
+
+    USER_OPT='\
+       create\
+       delete\
+       edit\
+       list\
+       reregister\
+       show\'
+
+    case "${prev}" in
+      bootstrap)
+        completions=""
+        ;;
+      bulk)
+        completions="delete"
+        ;; 
+      client)
+        completions="$CLIENT_OPT"
+        ;;
+      configure)
+        completions="$CONFIGURE_OPT"
+        ;;
+      cookbook)
+        completions="$COOKBOOK_OPT"
+        ;;
+      data)
+        completions="$DATA_OPT"
+        ;;
+      bag)
+        completions="$DATABAG_OPT"
+        ;;
+      environment)
+        completions="$ENVIRONMENT_OPT"
+        ;; 
+      node)
+        completions="$NODE_OPT"
+        ;;
+      run_list)
+        completions="$RUNLIST_OPT"
+        ;;
+      role)
+        completions="$ROLE_OPT"
+        ;; 
+      tag)
+        completions="$TAG_OPT"
+        ;;
+      user)
+        completions="$USER_OPT"
+        ;;
+      from)
+        completions="file"
+        ;;
+      help)
+        completions="$HELP_TOPICS"
+        ;; 
+      knife)
+        completions="$COMMANDS"
+        ;;
+      *)
+        completions=""
+        ;;
+    esac
+
+    if [[ "$prev2" == "bootstrap"  && "$prev3" != "" ]]; then 
+        completions="$BOOTSTRAP_OPT"
+    fi
+
+    COMPREPLY=($(compgen -W "$completions" -- $cur))
+    return 0
+}
+
+complete -o bashdefault -o default -F _knife knife
+
