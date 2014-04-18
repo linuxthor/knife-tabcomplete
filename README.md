@@ -11,5 +11,3 @@ and made available immediately by using '. /etc/bash_completion.d/knife'
 Tested with Knife version "Chef: 11.12.2"
 
 TODO: Lots!
-
-
