@@ -1,3 +1,117 @@
+_chef_dir () 
+{
+  # Opscode's / Chef's _chef_dir helper function:
+  #
+  # Recursive function that searches for chef configuration directory
+  # It looks upward from the cwd until it hits /.  If no directory is found,
+  # ~/.chef is chosen if it exists
+
+  if [ "$PWD" = "/" ]; then
+      if [ -d ".chef" ]; then
+          echo "/.chef"
+      elif [ -d "$HOME/.chef" ]; then
+          echo "$HOME/.chef"
+      fi
+      return
+  fi
+
+  if [ -d '.chef' ];then
+      echo "${PWD}/.chef"
+  else
+      (cd ..; _chef_dir)
+  fi
+}
+
+_refresh_cache()
+{
+    printf "\nUpdating cache.\n" > /dev/stderr
+
+    C_DIR=$(_chef_dir)
+
+    NODE_UP=$(knife node list)
+    if [ $? -eq 0 ]; then
+        echo $NODE_UP > "$C_DIR/knife_cache/nodes"
+    fi
+
+    CLIENT_UP=$(knife client list)
+    if [ $? -eq 0 ]; then
+        echo $CLIENT_UP > "$C_DIR/knife_cache/clients"
+    fi
+
+    COOK_UP=$(knife cookbook list|awk '{print $1}')
+    if [ $? -eq 0 ]; then
+        echo $COOK_UP > "$C_DIR/knife_cache/cookbooks"
+    fi
+
+    DATABAG_UP=$(knife data bag list)
+    if [ $? -eq 0 ]; then
+        echo $DATABAG_UP > "$C_DIR/knife_cache/databags"
+    fi
+
+    ENVIRONMENT_UP=$(knife environment list)
+    if [ $? -eq 0 ]; then
+        echo $ENVIRONMENT_UP > "$C_DIR/knife_cache/environments"
+    fi
+    
+    printf "Done." > /dev/stderr
+}
+
+_check_cache_freshness()
+{
+    C_DIR=$(_chef_dir)
+    FIVE_MIN=300
+
+    # Wrong path? 
+    if [[ ! -d $C_DIR ]];then
+        printf "\nError - No Chef directory found!\n"
+        return 1
+    fi
+
+    # First run? 
+    if [ ! -d $C_DIR/knife_cache/ ]; then
+        mkdir -p "$C_DIR/knife_cache/"
+        _refresh_cache
+    fi
+
+    NOW=$(date +%s)
+    REF=$(stat -c%Z $C_DIR/knife_cache/nodes)
+
+    OFFSET=$(($NOW - $REF))
+    if [ $OFFSET -gt $FIVE_MIN ]; then
+        _refresh_cache
+    fi
+
+    touch "$C_DIR/knife_cache/nodes"
+}
+
+get_nodelist()
+{
+    C_DIR=$(_chef_dir)
+    _check_cache_freshness
+    NODE_LIST=$(cat $C_DIR/knife_cache/nodes)
+}
+
+get_cookbooklist()
+{
+    C_DIR=$(_chef_dir)
+    _check_cache_freshness
+    COOKBOOK_LIST=$(cat $C_DIR/knife_cache/cookbooks)
+}
+
+get_clientlist()
+{
+    C_DIR=$(_chef_dir)
+    _check_cache_freshness
+    CLIENT_LIST=$(cat $C_DIR/knife_cache/clients)
+}
+
+get_environmentlist()
+{
+    C_DIR=$(_chef_dir)
+    _check_cache_freshness
+    ENVIRONMENT_LIST=$(cat $C_DIR/knife_cache/environments)
+}
+
 _knife()
 {
     local cur prev completions
@@ -5,8 +119,8 @@ _knife()
     COMPREPLY=()
     cur=${COMP_WORDS[COMP_CWORD]}
     prev=${COMP_WORDS[COMP_CWORD-1]}
-    prev2=${COMP_WORDS[1]}
-    prev3=${COMP_WORDS[2]}
+    cword1=${COMP_WORDS[1]}
+    cword2=${COMP_WORDS[2]}
 
     COMMANDS='bootstrap client configure converge cookbook data delete\
               deps diff download edit environment exec help index\ 
@@ -143,16 +257,25 @@ _knife()
         ;;
       environment)
         completions="$ENVIRONMENT_OPT"
+        ;;
+      index)
+        completions="rebuild"
         ;; 
       node)
         completions="$NODE_OPT"
         ;;
-      run_list)
-        completions="$RUNLIST_OPT"
-        ;;
+      recipe)
+        completions="list"
+        ;; 
       role)
         completions="$ROLE_OPT"
         ;; 
+      run_list)
+        completions="$RUNLIST_OPT"
+        ;;
+      ssl)
+        completions="$SSL_OPT"
+        ;;
       tag)
         completions="$TAG_OPT"
         ;;
@@ -173,8 +296,40 @@ _knife()
         ;;
     esac
 
-    if [[ "$prev2" == "bootstrap"  && "$prev3" != "" ]]; then 
+    if [[ "$cword1" == "bootstrap"  && "$cword2" != "" ]]; then 
         completions="$BOOTSTRAP_OPT"
+    fi
+
+    if [[ "$cword1" == "node" ]] && [[ "$cword2" == "show" || "$cword2" == "edit" || "$cword2" == "delete" ]]; then
+        get_nodelist
+        completions='$NODE_LIST'
+    fi
+
+    if [[ "$cword1" == "cookbook" ]] && [[ "$cword2" == "show" || "$cword2" == "metadata" ||
+                                           "$cword2" == "download" || "$cword2" == "delete" ]]; then
+        get_cookbooklist
+        completions='$COOKBOOK_LIST'
+    fi
+
+    if [[ "$cword1" == "client" ]] && [[ "$cword2" == "show" || "$cword2" == "edit" || "$cword2" == "delete" ]]; then
+        get_clientlist
+        completions='$CLIENT_LIST'
+    fi
+
+    if [[ "$cword1" == "environment" ]] && [[ "$cword2" == "show" || "$cword2" == "edit" || "$cword2" == "delete" ]]; then
+        get_environmentlist
+        completions='$ENVIRONMENT_LIST'
+    fi
+
+    if [[ "$cword1" == "tag" ]] && [[ "$cword2" == "create" || "$cword2" == "delete" || "$cword2" == "list"  ]]; then
+        get_nodelist
+        completions='$NODE_LIST'
+    fi
+
+    if [[ "$cword1" == "user" ]] && [[ "$cword2" == "show" || "$cword2" == "reregister" || "$cword2" == "edit" || 
+                                       "$cword2" == "delete" ]]; then
+        get_userlist
+        completions='$USER_LIST'
     fi
 
     COMPREPLY=($(compgen -W "$completions" -- $cur))
