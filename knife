@@ -52,6 +52,11 @@ _refresh_cache()
     if [ $? -eq 0 ]; then
         echo $ENVIRONMENT_UP > "$C_DIR/knife_cache/environments"
     fi
+
+    USER_UP=$(knife user list)
+    if [ $? -eq 0 ]; then
+        echo $USER_UP > "$C_DIR/knife_cache/users"
+    fi
     
     printf "Done." > /dev/stderr
 }
@@ -88,28 +93,35 @@ get_nodelist()
 {
     C_DIR=$(_chef_dir)
     _check_cache_freshness
-    NODE_LIST=$(cat $C_DIR/knife_cache/nodes)
+    NODE_LIST=$(cat "$C_DIR/knife_cache/nodes")
 }
 
 get_cookbooklist()
 {
     C_DIR=$(_chef_dir)
     _check_cache_freshness
-    COOKBOOK_LIST=$(cat $C_DIR/knife_cache/cookbooks)
+    COOKBOOK_LIST=$(cat "$C_DIR/knife_cache/cookbooks")
 }
 
 get_clientlist()
 {
     C_DIR=$(_chef_dir)
     _check_cache_freshness
-    CLIENT_LIST=$(cat $C_DIR/knife_cache/clients)
+    CLIENT_LIST=$(cat "$C_DIR/knife_cache/clients")
 }
 
 get_environmentlist()
 {
     C_DIR=$(_chef_dir)
     _check_cache_freshness
-    ENVIRONMENT_LIST=$(cat $C_DIR/knife_cache/environments)
+    ENVIRONMENT_LIST=$(cat "$C_DIR/knife_cache/environments")
+}
+
+get_userlist()
+{
+    C_DIR=$(_chef_dir)
+    _check_cache_freshness
+    USER_LIST=$(cat "$C_DIR/knife_cache/users")
 }
 
 _knife()
@@ -296,41 +308,55 @@ _knife()
         ;;
     esac
 
-    if [[ "$cword1" == "bootstrap"  && "$cword2" != "" ]]; then 
-        completions="$BOOTSTRAP_OPT"
-    fi
-
-    if [[ "$cword1" == "node" ]] && [[ "$cword2" == "show" || "$cword2" == "edit" || "$cword2" == "delete" ]]; then
+    case "${cword1}" in
+        bootstrap)
+        if [[ "${cword2}" != "" ]]; then
+            completions="$BOOTSTRAP_OPT"
+        fi
+        ;;
+        node)
+        case "${cword2}" in
+        node|show|edit|delete)
         get_nodelist
         completions='$NODE_LIST'
-    fi
-
-    if [[ "$cword1" == "cookbook" ]] && [[ "$cword2" == "show" || "$cword2" == "metadata" ||
-                                           "$cword2" == "download" || "$cword2" == "delete" ]]; then
+        esac
+        ;;
+        cookbook)
+        case "${cword2}" in
+        show|metadata|download|delete)
         get_cookbooklist
         completions='$COOKBOOK_LIST'
-    fi
-
-    if [[ "$cword1" == "client" ]] && [[ "$cword2" == "show" || "$cword2" == "edit" || "$cword2" == "delete" ]]; then
+        esac
+        ;;
+        client)
+        case "${cword2}" in
+        show|edit|delete)
         get_clientlist
         completions='$CLIENT_LIST'
-    fi
-
-    if [[ "$cword1" == "environment" ]] && [[ "$cword2" == "show" || "$cword2" == "edit" || "$cword2" == "delete" ]]; then
+        esac
+        ;;
+        environment)
+        case "${cword2}" in
+        show|edit|delete)
         get_environmentlist
         completions='$ENVIRONMENT_LIST'
-    fi
-
-    if [[ "$cword1" == "tag" ]] && [[ "$cword2" == "create" || "$cword2" == "delete" || "$cword2" == "list"  ]]; then
+        esac
+        ;;
+        tag)
+        case "${cword2}" in
+        create|delete|list)
         get_nodelist
         completions='$NODE_LIST'
-    fi
-
-    if [[ "$cword1" == "user" ]] && [[ "$cword2" == "show" || "$cword2" == "reregister" || "$cword2" == "edit" || 
-                                       "$cword2" == "delete" ]]; then
+        esac
+        ;;
+        user)
+        case "${cword2}" in
+        show|reregister|edit|delete)
         get_userlist
         completions='$USER_LIST'
-    fi
+        esac
+        ;;
+    esac
 
     COMPREPLY=($(compgen -W "$completions" -- $cur))
     return 0
